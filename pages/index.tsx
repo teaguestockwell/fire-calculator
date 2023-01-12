@@ -125,13 +125,13 @@ const AddStream = () => {
   return (
     <div style={css.card}>
       <h1>add income and expenses</h1>
-      <label htmlFor="name">name</label>
+      <label htmlFor="name">income / expense name</label>
       <input
         id="name"
         type="text"
         onChange={(e) => ss((p) => ({ ...p, name: e.target.value }))}
         value={s.name}
-        autoComplete="false"
+        autoComplete="off"
       />
       <label htmlFor="start year">start year</label>
       <input
@@ -187,13 +187,13 @@ const EditStream = (props: { k: number }) => {
 
   return (
     <div style={css.card}>
-      <label htmlFor="name">name</label>
+      <label htmlFor="name">income / expense name</label>
       <input
         id="name"
         type="text"
         onChange={(e) => ss((p) => ({ ...p, name: e.target.value }))}
         value={s.name}
-        autoComplete="false"
+        autoComplete="off"
       />
       <label htmlFor="start year">start year</label>
       <input
