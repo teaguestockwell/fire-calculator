@@ -74,7 +74,7 @@ const css = createCSS(() => ({
   },
   grow: {
     margin: 20,
-    minHeight: "30vh",
+    minHeight: "93vh",
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
