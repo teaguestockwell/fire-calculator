@@ -1,123 +1,435 @@
-import Head from 'next/head'
-import Image from 'next/image'
-import { Inter } from '@next/font/google'
-import styles from '../styles/Home.module.css'
+import React from "react";
+import { SetState, create } from "zustand";
+import { combine, devtools, persist } from "zustand/middleware";
+import type { Chart as ChartType } from "react-charts";
+const Chart = dynamic(() => import("react-charts").then((mod) => mod.Chart), {
+  ssr: false,
+}) as typeof ChartType;
+import type * as C from "csstype";
+import dynamic from "next/dynamic";
 
-const inter = Inter({ subsets: ['latin'] })
+// https://codesandbox.io/s/thirsty-blackburn-cibc5j?file=/src/components/Line.tsx:815-827
 
-export default function Home() {
+type P = C.Properties<string | number>;
+const createCSS = <Res extends { [k: string]: P }>(create: () => Res): Res =>
+  create();
+
+type Stream = {
+  key: number;
+  name: string;
+  startYear: number;
+  endYear: number;
+  startValue: number;
+  annualAddition: number;
+  annaulAdditionIncrease: number;
+};
+
+const initState = {
+  roi: 0.07,
+  moneyStreams: {} as Record<string, Stream>,
+};
+
+const actions = (set: SetState<typeof initState>) => ({
+  deleteStream: (key: number) => {
+    set((s) => {
+      const moneyStreams = structuredClone(s.moneyStreams);
+      delete moneyStreams[key];
+      return {
+        ...s,
+        moneyStreams,
+      };
+    });
+  },
+  putStream: (stream: Stream) => {
+    set((s) => {
+      const moneyStreams = structuredClone(s.moneyStreams);
+      moneyStreams[stream.key] = stream;
+      return {
+        ...s,
+        moneyStreams,
+      };
+    });
+  },
+});
+
+export const store = create(
+  persist(combine(initState, actions), { name: "store" })
+);
+
+const css = createCSS(() => ({
+  card: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+    padding: 10,
+  },
+  cardNoSidePad: {
+    padding: "10px 0 10px 0",
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+  },
+  pre: {
+    whiteSpace: "pre-wrap",
+  },
+  grow: {
+    margin: 20,
+    minHeight: "30vh",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  root: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+  },
+}));
+const getInitState = (): Record<keyof Stream, string | number> => ({
+  name: "",
+  startYear: "",
+  endYear: "",
+  startValue: "",
+  annualAddition: "",
+  annaulAdditionIncrease: "",
+  key: Date.now(),
+});
+
+const AddStream = () => {
+  const [s, ss] = React.useState(getInitState);
+
+  const submit = () => {
+    const errors: string[] = [];
+    Object.entries(s).forEach((e) => {
+      if (!e[1]) {
+        console.log(e[0]);
+        errors.push(e[0]);
+      }
+    });
+    if (errors.length) {
+      alert("unfilled fields: " + errors.join(" "));
+      return;
+    }
+    ss(getInitState());
+    store.getState().putStream({
+      name: s.name as string,
+      startYear: Math.floor(+s.startYear),
+      endYear: Math.floor(+s.endYear),
+      startValue: Math.floor(+s.startValue),
+      annualAddition: Math.floor(+s.annualAddition),
+      annaulAdditionIncrease: +s.annaulAdditionIncrease,
+      key: s.key as number,
+    });
+  };
+
+  return (
+    <div style={css.card}>
+      <h1>add income and expenses</h1>
+      <label htmlFor="name">name</label>
+      <input
+        id="name"
+        type="text"
+        onChange={(e) => ss((p) => ({ ...p, name: e.target.value }))}
+        value={s.name}
+        autoComplete="false"
+      />
+      <label htmlFor="start year">start year</label>
+      <input
+        id="start year"
+        type="number"
+        onChange={(e) => ss((p) => ({ ...p, startYear: e.target.value }))}
+        value={s.startYear}
+      />
+      <label htmlFor="end year">end year</label>
+      <input
+        id="end year"
+        type="number"
+        onChange={(e) => ss((p) => ({ ...p, endYear: e.target.value }))}
+        value={s.endYear}
+      />
+      <label htmlFor="start value">start value</label>
+      <input
+        id="start value"
+        type="number"
+        onChange={(e) => ss((p) => ({ ...p, startValue: e.target.value }))}
+        value={s.startValue}
+      />
+      <label htmlFor="annual addition">annual addition</label>
+      <input
+        id="annual addition"
+        type="number"
+        onChange={(e) => ss((p) => ({ ...p, annualAddition: e.target.value }))}
+        value={s.annualAddition}
+      />
+      <label htmlFor="annual addition increase percent">
+        annual addition increase percent
+      </label>
+      <input
+        id="annual addition increase percent"
+        type="number"
+        onChange={(e) =>
+          ss((p) => ({ ...p, annaulAdditionIncrease: e.target.value }))
+        }
+        value={s.annaulAdditionIncrease}
+      />
+      <button onClick={submit}>add</button>
+    </div>
+  );
+};
+
+const EditStream = (props: { k: number }) => {
+  const s = store((s) => s.moneyStreams[props.k]);
+  type S = typeof s;
+  const ss = (cb: (prev: S) => S) => {
+    const prev = store.getState().moneyStreams[props.k];
+    store.getState().putStream(cb(prev));
+  };
+
+  return (
+    <div style={css.card}>
+      <label htmlFor="name">name</label>
+      <input
+        id="name"
+        type="text"
+        onChange={(e) => ss((p) => ({ ...p, name: e.target.value }))}
+        value={s.name}
+        autoComplete="false"
+      />
+      <label htmlFor="start year">start year</label>
+      <input
+        id="start year"
+        type="number"
+        onChange={(e) =>
+          ss((p) => ({ ...p, startYear: Math.floor(+e.target.value) }))
+        }
+        value={s.startYear}
+      />
+      <label htmlFor="end year">end year</label>
+      <input
+        id="end year"
+        type="number"
+        onChange={(e) => ss((p) => ({ ...p, endYear: +e.target.value }))}
+        value={s.endYear}
+      />
+      <label htmlFor="start value">start value</label>
+      <input
+        id="start value"
+        type="number"
+        onChange={(e) =>
+          ss((p) => ({ ...p, startValue: Math.floor(+e.target.value) }))
+        }
+        value={s.startValue}
+      />
+      <label htmlFor="annual addition">annual addition</label>
+      <input
+        id="annual addition"
+        type="number"
+        onChange={(e) =>
+          ss((p) => ({ ...p, annualAddition: Math.floor(+e.target.value) }))
+        }
+        value={s.annualAddition}
+      />
+      <label htmlFor="annual addition increase percent">
+        annual addition increase percent
+      </label>
+      <input
+        id="annual addition increase percent"
+        type="number"
+        onChange={(e) =>
+          ss((p) => ({ ...p, annaulAdditionIncrease: +e.target.value }))
+        }
+        value={s.annaulAdditionIncrease}
+      />
+    </div>
+  );
+};
+
+const StreamList = () => {
+  const streams = store((s) => s.moneyStreams);
+
+  if (!Object.keys(streams).length) {
+    return null;
+  }
+
+  return (
+    <div style={css.card}>
+      <h1>edit income and expenses</h1>
+      {Object.values(streams).map((s) => {
+        return (
+          <div key={s.name} style={css.cardNoSidePad}>
+            <button onClick={() => store.getState().deleteStream(s.key)}>
+              delete
+            </button>
+            <EditStream k={s.key} key={s.name} />
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+const projectStream = (options: {
+  startYear: number;
+  endYear: number;
+  s: Stream;
+}) => {
+  const { startYear, endYear, s } = options;
+  // primary: date, secondary: amount
+  const data: { primary: number; secondary: number }[] = [];
+  let annualAddition = s.annualAddition;
+  for (let year = startYear + 1, i = 0; year <= endYear; year++, i++) {
+    if (year < s.startYear || year > s.endYear) {
+      const prevAmount = data[i - 1]?.secondary ?? s.startValue ?? 0;
+      const amount = prevAmount;
+      const next = { primary: year, secondary: amount };
+      data.push(next);
+      continue;
+    }
+
+    const prevAmount = data[i - 1]?.secondary ?? s.startValue ?? 0;
+    const amount = prevAmount + annualAddition;
+    const next = { primary: year, secondary: amount };
+    annualAddition += annualAddition * s.annaulAdditionIncrease;
+    data.push(next);
+  }
+  return {
+    label: s.name,
+    data: data.map((d) => ({ ...d, secondary: Math.floor(d.secondary) })),
+  };
+};
+
+const diffYear = (
+  projectedStream: ReturnType<typeof projectStream>,
+  year: number
+) => {
+  const prev = projectedStream.data.find((d) => d.primary === year - 1) ?? {
+    secondary: 0,
+  };
+  const cur = projectedStream.data.find((d) => d.primary === year) ?? {
+    secondary: 0,
+  };
+  return cur.secondary - prev.secondary;
+};
+
+const getSumStream = (projectedStreams: ReturnType<typeof projectStream>[]) => {
+  const roi = store.getState().roi;
+  // primary: date, secondary: amount
+  const data: { primary: number; secondary: number }[] = [];
+  const firstYear = projectedStreams[0].data[0].primary;
+  const lastYear =
+    projectedStreams[0].data[projectedStreams[0].data.length - 1].primary;
+  for (let year = firstYear, i = 0; year <= lastYear; year++, i++) {
+    const diffs = projectedStreams.map((s) => diffYear(s, year));
+    const sum = diffs.reduce((acc, cur) => acc + cur, 0);
+    const apy = sum * roi;
+    const lastTotal = data[i - 1]?.secondary ?? 0;
+    const total = sum + apy + lastTotal;
+    data.push({ primary: year, secondary: total });
+  }
+  return { data, label: "sum" };
+};
+
+const useLineData = () => {
+  const s = store((s) => s.moneyStreams);
+  const ss = React.useMemo(() => Object.values(s), [s]);
+  const startYear = React.useMemo(() => {
+    if (!ss.length) {
+      return 0;
+    }
+    let min = Number.MAX_SAFE_INTEGER;
+    for (const e of ss) {
+      min = Math.min(min, e.startYear);
+    }
+    return min;
+  }, [ss]);
+
+  const endYear = React.useMemo(() => {
+    if (!ss.length) {
+      return 0;
+    }
+    let max = 0;
+    for (const e of ss) {
+      max = Math.max(max, e.endYear);
+    }
+    return max;
+  }, [ss]);
+
+  const data = React.useMemo(() => {
+    if (!ss.length) {
+      return null;
+    }
+    const given = ss.map((e) => projectStream({ startYear, endYear, s: e }));
+    const derived = getSumStream(given);
+    return [...given, derived];
+  }, [ss, startYear, endYear]);
+  return data;
+};
+
+const Line = () => {
+  const data = useLineData();
+
+  const primaryAxis = React.useMemo(
+    () => ({
+      getValue: (datum: any) => datum.primary as unknown as Date,
+    }),
+    []
+  );
+
+  const secondaryAxes = React.useMemo(
+    () => [
+      {
+        getValue: (datum: any) => datum.secondary,
+      },
+    ],
+    []
+  );
+
+  if (!data) {
+    return null;
+  }
+
   return (
     <>
-      <Head>
-        <title>Create Next App</title>
-        <meta name="description" content="Generated by create next app" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
-      <main className={styles.main}>
-        <div className={styles.description}>
-          <p>
-            Get started by editing&nbsp;
-            <code className={styles.code}>pages/index.tsx</code>
-          </p>
-          <div>
-            <a
-              href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              By{' '}
-              <Image
-                src="/vercel.svg"
-                alt="Vercel Logo"
-                className={styles.vercelLogo}
-                width={100}
-                height={24}
-                priority
-              />
-            </a>
-          </div>
-        </div>
-
-        <div className={styles.center}>
-          <Image
-            className={styles.logo}
-            src="/next.svg"
-            alt="Next.js Logo"
-            width={180}
-            height={37}
-            priority
-          />
-          <div className={styles.thirteen}>
-            <Image
-              src="/thirteen.svg"
-              alt="13"
-              width={40}
-              height={31}
-              priority
-            />
-          </div>
-        </div>
-
-        <div className={styles.grid}>
-          <a
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <h2 className={inter.className}>
-              Docs <span>-&gt;</span>
-            </h2>
-            <p className={inter.className}>
-              Find in-depth information about Next.js features and&nbsp;API.
-            </p>
-          </a>
-
-          <a
-            href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <h2 className={inter.className}>
-              Learn <span>-&gt;</span>
-            </h2>
-            <p className={inter.className}>
-              Learn about Next.js in an interactive course with&nbsp;quizzes!
-            </p>
-          </a>
-
-          <a
-            href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <h2 className={inter.className}>
-              Templates <span>-&gt;</span>
-            </h2>
-            <p className={inter.className}>
-              Discover and deploy boilerplate example Next.js&nbsp;projects.
-            </p>
-          </a>
-
-          <a
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <h2 className={inter.className}>
-              Deploy <span>-&gt;</span>
-            </h2>
-            <p className={inter.className}>
-              Instantly deploy your Next.js site to a shareable URL
-              with&nbsp;Vercel.
-            </p>
-          </a>
-        </div>
-      </main>
+      <div style={css.grow}>
+        <Chart
+          options={{
+            data,
+            primaryAxis,
+            secondaryAxes,
+            dark: true,
+          }}
+        />
+      </div>
+      {/* <pre style={css.pre}>
+        {JSON.stringify({ data, state: store.getState() }, null, 2)}
+      </pre> */}
     </>
-  )
+  );
+};
+
+const Options = () => {
+  const value = store((s) => s.roi);
+  return (
+    <div style={css.card}>
+      <h1>options</h1>
+      <label htmlFor="roi">roi</label>
+      <input
+        id="roi"
+        type="number"
+        value={value}
+        onChange={(e) => store.setState({ roi: +e.target.value })}
+      />
+    </div>
+  );
+};
+
+export default function App() {
+  return (
+    <div style={css.root}>
+      <Options />
+      <AddStream />
+      <StreamList />
+      <Line />
+    </div>
+  );
 }
