@@ -321,8 +321,8 @@ const getSumStream = (projectedStreams: ReturnType<typeof projectStream>[]) => {
   for (let year = firstYear, i = 0; year <= lastYear; year++, i++) {
     const diffs = projectedStreams.map((s) => diffYear(s, year));
     const sum = diffs.reduce((acc, cur) => acc + cur, 0);
-    const apy = sum * roi;
     const lastTotal = data[i - 1]?.secondary ?? 0;
+    const apy = lastTotal * roi;
     const total = sum + apy + lastTotal;
     data.push({ primary: year, secondary: total });
   }
