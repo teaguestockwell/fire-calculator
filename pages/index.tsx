@@ -311,8 +311,10 @@ const diffYear = (
   return cur.secondary - prev.secondary;
 };
 
-const getSumStream = (projectedStreams: ReturnType<typeof projectStream>[]) => {
-  const roi = store.getState().roi;
+const getSumStream = (
+  projectedStreams: ReturnType<typeof projectStream>[],
+  roi: number
+) => {
   // primary: date, secondary: amount
   const data: { primary: number; secondary: number }[] = [];
   const firstYear = projectedStreams[0].data[0].primary;
@@ -331,6 +333,7 @@ const getSumStream = (projectedStreams: ReturnType<typeof projectStream>[]) => {
 
 const useLineData = () => {
   const s = store((s) => s.moneyStreams);
+  const roi = store((s) => s.roi);
   const ss = React.useMemo(() => Object.values(s), [s]);
   const startYear = React.useMemo(() => {
     if (!ss.length) {
@@ -359,9 +362,9 @@ const useLineData = () => {
       return null;
     }
     const given = ss.map((e) => projectStream({ startYear, endYear, s: e }));
-    const derived = getSumStream(given);
+    const derived = getSumStream(given, roi);
     return [...given, derived];
-  }, [ss, startYear, endYear]);
+  }, [ss, startYear, endYear, roi]);
   return data;
 };
 
