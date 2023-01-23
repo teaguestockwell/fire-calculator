@@ -1,8 +1,10 @@
 import React from "react";
 import { SetState, create } from "zustand";
-import { combine, devtools, persist } from "zustand/middleware";
-import { Chart } from "react-charts"
+import { combine, persist } from "zustand/middleware";
+import { Chart } from "react-charts";
 import type * as C from "csstype";
+import { dehydrate, rehydrate } from "./remote-state";
+import Router from "next/router";
 
 // https://codesandbox.io/s/thirsty-blackburn-cibc5j?file=/src/components/Line.tsx:815-827
 
@@ -422,6 +424,26 @@ const Options = () => {
   );
 };
 
+const Share = () => {
+  const handleShare = async () => {
+    const token = await dehydrate(store.getState());
+    const currentUrl = window.location.href;
+    const newUrl = `${currentUrl}?state=${token}`;
+    window.history.pushState({}, "", newUrl);
+    alert(newUrl);
+  };
+
+  React.useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const token = searchParams.get("state");
+    if (token) {
+      rehydrate(token).then(store.setState);
+    }
+  }, []);
+
+  return <button onClick={handleShare}>share / save</button>;
+};
+
 export default function App() {
   return (
     <div style={css.root}>
@@ -429,6 +451,7 @@ export default function App() {
       <AddStream />
       <StreamList />
       <Line />
+      <Share />
     </div>
   );
 }
