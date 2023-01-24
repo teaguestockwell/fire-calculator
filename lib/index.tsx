@@ -1,10 +1,11 @@
 import React from "react";
 import { SetState, create } from "zustand";
-import { combine, persist } from "zustand/middleware";
+import { combine } from "zustand/middleware";
 import { Chart } from "react-charts";
 import type * as C from "csstype";
 import { dehydrate, rehydrate } from "./remote-state";
 import { ErrorBoundary } from "react-error-boundary";
+import Head from "next/head";
 
 // https://codesandbox.io/s/thirsty-blackburn-cibc5j?file=/src/components/Line.tsx:815-827
 
@@ -25,6 +26,8 @@ type Stream = {
 const getInitStoreState = () => ({
   roi: 0.07,
   moneyStreams: {} as Record<string, Stream>,
+  lastSaved: new Date().toISOString(),
+  autoSave: false,
 });
 
 type StoreState = ReturnType<typeof getInitStoreState>;
@@ -61,14 +64,33 @@ const actions = (set: SetState<StoreState>) => ({
   },
 });
 
-export const store = create(
-  persist(combine(getInitStoreState(), actions), { name: "store" })
-);
+export const store = create(combine(getInitStoreState(), actions));
 
 const stateStack = [store.getState()];
 store.subscribe((next) => {
   stateStack.push(next);
   if (stateStack.length > 3) stateStack.shift();
+});
+
+store.subscribe((state) => {
+  if (state.autoSave) {
+    const lastSave = new Date(state.lastSaved).valueOf();
+    const curSave = Date.now();
+    if (curSave - lastSave > 1000) {
+      const currentUrl = window.location.href;
+      const url = new URL(currentUrl);
+      const currentUrlParams = url.searchParams;
+      const currentToken = currentUrlParams.get("state");
+      const newToken = dehydrate(store.getState());
+      if (currentToken === newToken) {
+        return;
+      }
+      currentUrlParams.set("state", newToken);
+      url.search = currentUrlParams.toString();
+      window.history.pushState({}, "", url.toString());
+      store.setState({ lastSaved: new Date().toISOString() });
+    }
+  }
 });
 
 const css = createCSS(() => ({
@@ -108,6 +130,13 @@ const css = createCSS(() => ({
     width: "100vw",
     height: "100vh",
   },
+  h1: {
+    fontSize: "2em",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
 }));
 const getInitState = (): Record<keyof Stream, string | number> => ({
   name: "",
@@ -134,6 +163,15 @@ const AddStream = () => {
       alert("unfilled fields: " + errors.join(" "));
       return;
     }
+    if (Math.floor(+s.startYear) < 1900) {
+      alert("start year cant be less than 1900");
+      return;
+    }
+    if (Math.floor(+s.endYear) > 3000) {
+      alert("end year cant be greater than 3000");
+      return;
+    }
+
     ss(getInitState());
     store.getState().putStream({
       name: s.name as string,
@@ -223,16 +261,28 @@ const EditStream = (props: { k: number }) => {
       <input
         id="start year"
         type="number"
-        onChange={(e) =>
-          ss((p) => ({ ...p, startYear: Math.floor(+e.target.value) }))
-        }
+        onChange={(e) => {
+          const next = Math.floor(+e.target.value);
+          if (next < 1900) {
+            alert("start cant be less than 1990");
+            return;
+          }
+          ss((p) => ({ ...p, startYear: next }));
+        }}
         value={s.startYear}
       />
       <label htmlFor="end year">end year</label>
       <input
         id="end year"
         type="number"
-        onChange={(e) => ss((p) => ({ ...p, endYear: +e.target.value }))}
+        onChange={(e) => {
+          const next = +e.target.value;
+          if (next > 3000) {
+            alert("end cant be greater than 3000");
+            return;
+          }
+          ss((p) => ({ ...p, endYear: next }));
+        }}
         value={s.endYear}
       />
       <label htmlFor="start value">start value</label>
@@ -436,6 +486,44 @@ const Line = () => {
 
 const Options = () => {
   const value = store((s) => s.roi);
+  const lastSaved = store((s) => s.lastSaved);
+  const autoSAve = store((s) => s.autoSave);
+  const handleShare = () => {
+    try {
+      const currentUrl = window.location.href;
+      const url = new URL(currentUrl);
+      const currentUrlParams = url.searchParams;
+      const currentToken = currentUrlParams.get("state");
+      const newToken = dehydrate(store.getState());
+      if (currentToken === newToken) {
+        alert("saved in url and copied to clipboard");
+        return;
+      }
+      currentUrlParams.set("state", newToken);
+      url.search = currentUrlParams.toString();
+      window.history.pushState({}, "", url.toString());
+      navigator.clipboard.writeText(url.toString()).then(() => {
+        alert("saved in url and copied to clipboard");
+      });
+      store.setState({ lastSaved: new Date().toISOString() });
+    } catch {
+      alert("unable to save");
+    }
+  };
+
+  React.useEffect(() => {
+    try {
+      const searchParams = new URLSearchParams(window.location.search);
+      const token = searchParams.get("state");
+      if (token) {
+        const state = rehydrate(token);
+        store.setState(state);
+      }
+    } catch (e) {
+      console.error(e);
+      alert("unable to load save, check you copied the full url");
+    }
+  }, []);
   return (
     <div style={css.card}>
       <h1>options</h1>
@@ -446,34 +534,30 @@ const Options = () => {
         value={value}
         onChange={(e) => store.setState({ roi: +e.target.value })}
       />
+      <label htmlFor="autosave">autosave</label>
+      <input
+        id="autosave"
+        type="checkbox"
+        checked={autoSAve}
+        onChange={(e) => store.setState({ autoSave: e.target.checked })}
+      />
+      <label htmlFor="save">
+        last saved {new Date(lastSaved).toLocaleDateString()}{" "}
+        {new Date(lastSaved).toLocaleTimeString()}
+      </label>
+      <button id="save" onClick={handleShare}>{`save / share`}</button>
     </div>
   );
 };
 
 const Share = () => {
-  const handleShare = async () => {
-    const token = await dehydrate(store.getState());
-    const currentUrl = window.location.href;
-    const newUrl = `${currentUrl}?state=${token}`;
-    window.history.pushState({}, "", newUrl);
-    alert(newUrl);
-  };
-
-  React.useEffect(() => {
-    const searchParams = new URLSearchParams(window.location.search);
-    const token = searchParams.get("state");
-    if (token) {
-      rehydrate(token).then(store.setState);
-    }
-  }, []);
-
-  return <button onClick={handleShare}>share / save</button>;
+  return;
 };
 
 const Fallback = (props: { resetErrorBoundary: () => void }) => {
   return (
     <div style={css.center}>
-      <span>something went wrong</span>
+      <label>something went wrong</label>
       <button onClick={props.resetErrorBoundary}>undo</button>
     </div>
   );
@@ -489,14 +573,19 @@ const RootErrorBoundary = (props: React.PropsWithChildren<{}>) => {
 
 export default function App() {
   return (
-    <div style={css.root}>
-      <RootErrorBoundary>
-        <Options />
-        <AddStream />
-        <StreamList />
-        <Line />
-        <Share />
-      </RootErrorBoundary>
-    </div>
+    <>
+      <Head>
+        <title>FIRE Calculator</title>
+      </Head>
+      <div style={css.root}>
+        <h1 style={css.h1}>FIRE Calculator</h1>
+        <RootErrorBoundary>
+          <Options />
+          <AddStream />
+          <StreamList />
+          <Line />
+        </RootErrorBoundary>
+      </div>
+    </>
   );
 }

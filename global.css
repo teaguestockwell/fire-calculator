@@ -35,6 +35,10 @@ textarea {
   font-size: 16px;
 }
 
+input[type=checkbox]{
+  width: 30px !important;
+}
+
 button {
   border-radius: 4px;
   min-height: 40px;
