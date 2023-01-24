@@ -4,7 +4,7 @@ import { combine, persist } from "zustand/middleware";
 import { Chart } from "react-charts";
 import type * as C from "csstype";
 import { dehydrate, rehydrate } from "./remote-state";
-import Router from "next/router";
+import { ErrorBoundary } from "react-error-boundary";
 
 // https://codesandbox.io/s/thirsty-blackburn-cibc5j?file=/src/components/Line.tsx:815-827
 
@@ -22,12 +22,14 @@ type Stream = {
   annaulAdditionIncrease: number;
 };
 
-const initState = {
+const getInitStoreState = () => ({
   roi: 0.07,
   moneyStreams: {} as Record<string, Stream>,
-};
+});
 
-const actions = (set: SetState<typeof initState>) => ({
+type StoreState = ReturnType<typeof getInitStoreState>;
+
+const actions = (set: SetState<StoreState>) => ({
   deleteStream: (key: number) => {
     set((s) => {
       const moneyStreams = structuredClone(s.moneyStreams);
@@ -48,11 +50,26 @@ const actions = (set: SetState<typeof initState>) => ({
       };
     });
   },
+  undo: () => {
+    stateStack.pop();
+    const prev = stateStack.pop();
+    if (prev) {
+      set(prev);
+    } else {
+      set(getInitStoreState());
+    }
+  },
 });
 
 export const store = create(
-  persist(combine(initState, actions), { name: "store" })
+  persist(combine(getInitStoreState(), actions), { name: "store" })
 );
+
+const stateStack = [store.getState()];
+store.subscribe((next) => {
+  stateStack.push(next);
+  if (stateStack.length > 3) stateStack.shift();
+});
 
 const css = createCSS(() => ({
   card: {
@@ -81,6 +98,15 @@ const css = createCSS(() => ({
     display: "flex",
     flexDirection: "column",
     gap: 10,
+  },
+  center: {
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 10,
+    width: "100vw",
+    height: "100vh",
   },
 }));
 const getInitState = (): Record<keyof Stream, string | number> => ({
@@ -444,14 +470,33 @@ const Share = () => {
   return <button onClick={handleShare}>share / save</button>;
 };
 
+const Fallback = (props: { resetErrorBoundary: () => void }) => {
+  return (
+    <div style={css.center}>
+      <span>something went wrong</span>
+      <button onClick={props.resetErrorBoundary}>undo</button>
+    </div>
+  );
+};
+
+const RootErrorBoundary = (props: React.PropsWithChildren<{}>) => {
+  return (
+    <ErrorBoundary FallbackComponent={Fallback} onReset={store.getState().undo}>
+      {props.children}
+    </ErrorBoundary>
+  );
+};
+
 export default function App() {
   return (
     <div style={css.root}>
-      <Options />
-      <AddStream />
-      <StreamList />
-      <Line />
-      <Share />
+      <RootErrorBoundary>
+        <Options />
+        <AddStream />
+        <StreamList />
+        <Line />
+        <Share />
+      </RootErrorBoundary>
     </div>
   );
 }
