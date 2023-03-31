@@ -51,7 +51,7 @@ button:is(:focus-visible, :hover) {
   transform: translateY(-1px);
 }
 
-label {
+label, span {
   color: var(--fc-0);
   font-size: 16px;
 }

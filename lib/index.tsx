@@ -99,11 +99,14 @@ const css = createCSS(() => ({
     flexDirection: "column",
     gap: 10,
     padding: 10,
+    border: "1px solid var(--fc-1)",
+    borderRadius: 4,
   },
-  cardNoSidePad: {
-    padding: "10px 0 10px 0",
-    display: "flex",
-    flexDirection: "column",
+  grid: {
+    display: "grid",
+    gridTemplateColumns:
+      "repeat(auto-fill, minmax(min(500px, calc(100vw - 10px)), 1fr))",
+    justifyContent: "center",
     gap: 10,
   },
   pre: {
@@ -120,6 +123,7 @@ const css = createCSS(() => ({
     display: "flex",
     flexDirection: "column",
     gap: 10,
+    padding: 10,
   },
   center: {
     display: "flex",
@@ -135,8 +139,11 @@ const css = createCSS(() => ({
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    padding: 20,
   },
+  description: {
+    textAlign: "center",
+    whiteSpace: 'pre-wrap',
+  }
 }));
 const getInitState = (): Record<keyof Stream, string | number> => ({
   name: "",
@@ -249,6 +256,7 @@ const EditStream = (props: { k: number }) => {
 
   return (
     <div style={css.card}>
+      <h1>{s.name}</h1>
       <label htmlFor="name">income / expense name</label>
       <input
         id="name"
@@ -314,6 +322,9 @@ const EditStream = (props: { k: number }) => {
         }
         value={s.annaulAdditionIncrease}
       />
+      <button onClick={() => store.getState().deleteStream(s.key)}>
+        delete
+      </button>
     </div>
   );
 };
@@ -326,19 +337,11 @@ const StreamList = () => {
   }
 
   return (
-    <div style={css.card}>
-      <h1>edit income and expenses</h1>
+    <>
       {Object.values(streams).map((s) => {
-        return (
-          <div key={s.name} style={css.cardNoSidePad}>
-            <button onClick={() => store.getState().deleteStream(s.key)}>
-              delete
-            </button>
-            <EditStream k={s.key} key={s.name} />
-          </div>
-        );
+        return <EditStream k={s.key} key={s.name} />;
       })}
-    </div>
+    </>
   );
 };
 
@@ -579,10 +582,17 @@ export default function App() {
       </Head>
       <div style={css.root}>
         <h1 style={css.h1}>FIRE Calculator</h1>
+        <span style={css.description}>{`
+          when adding an income or expense, use today's dollars after tax
+          
+          roi is compounded annually, be conservative and deduct inflation
+        `}</span>
         <RootErrorBoundary>
-          <Options />
-          <AddStream />
-          <StreamList />
+          <div style={css.grid}>
+            <Options />
+            <AddStream />
+            <StreamList />
+          </div>
           <Line />
         </RootErrorBoundary>
       </div>
