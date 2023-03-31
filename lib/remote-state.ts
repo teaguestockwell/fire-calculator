@@ -1,16 +1,11 @@
-export const dehydrate = (json: object) => {
-  const jsonString = JSON.stringify(json);
-  const jsonB64 = btoa(jsonString);
-  const jsonUri = jsonB64
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
-  return jsonUri;
+import { gzip, ungzip } from 'pako'
+import { fromUint8Array, toUint8Array } from 'js-base64'
+
+// https://github.com/zerodevx/zipurl
+export const dehydrate = (data: object) => {
+  return fromUint8Array(gzip(JSON.stringify(data)), true)
 };
 
-export const rehydrate = (jsonUri: string) => {
-  const jsonB64 = jsonUri.replace(/-/g, "+").replace(/_/g, "/");
-  const jsonString = atob(jsonB64);
-  const json = JSON.parse(jsonString);
-  return json;
+export const rehydrate = (data: string) => {
+  return JSON.parse(ungzip(toUint8Array(data), { to: 'string' }));
 };

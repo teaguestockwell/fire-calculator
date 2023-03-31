@@ -80,12 +80,12 @@ store.subscribe((state) => {
       const currentUrl = window.location.href;
       const url = new URL(currentUrl);
       const currentUrlParams = url.searchParams;
-      const currentToken = currentUrlParams.get("state");
+      const currentToken = currentUrlParams.get("s");
       const newToken = dehydrate(store.getState());
       if (currentToken === newToken) {
         return;
       }
-      currentUrlParams.set("state", newToken);
+      currentUrlParams.set("s", newToken);
       url.search = currentUrlParams.toString();
       window.history.pushState({}, "", url.toString());
       store.setState({ lastSaved: new Date().toISOString() });
@@ -493,13 +493,13 @@ const Options = () => {
       const currentUrl = window.location.href;
       const url = new URL(currentUrl);
       const currentUrlParams = url.searchParams;
-      const currentToken = currentUrlParams.get("state");
+      const currentToken = currentUrlParams.get("s");
       const newToken = dehydrate(store.getState());
       if (currentToken === newToken) {
         alert("saved in url and copied to clipboard");
         return;
       }
-      currentUrlParams.set("state", newToken);
+      currentUrlParams.set("s", newToken);
       url.search = currentUrlParams.toString();
       window.history.pushState({}, "", url.toString());
       navigator.clipboard.writeText(url.toString()).then(() => {
@@ -514,7 +514,7 @@ const Options = () => {
   React.useEffect(() => {
     try {
       const searchParams = new URLSearchParams(window.location.search);
-      const token = searchParams.get("state");
+      const token = searchParams.get("s");
       if (token) {
         const state = rehydrate(token);
         store.setState(state);
