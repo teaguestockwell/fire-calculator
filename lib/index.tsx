@@ -20,17 +20,70 @@ type Stream = {
   endYear: number;
   startValue: number;
   annualAddition: number;
-  annaulAdditionIncrease: number;
+  annualAdditionIncrease: number;
 };
 
 const getInitStoreState = () => ({
-  roi: 0.07,
+  roi: 0.06,
   moneyStreams: {} as Record<string, Stream>,
   lastSaved: new Date().toISOString(),
   autoSave: false,
 });
 
 type StoreState = ReturnType<typeof getInitStoreState>;
+
+const getDemo = (): StoreState => ({
+  lastSaved: new Date().toISOString(),
+  autoSave: false,
+  roi: 0.06,
+  moneyStreams: {
+    1: {
+      key: 1,
+      name: 'job (net)',
+      startYear: new Date().getFullYear(),
+      endYear: new Date().getFullYear() + 10,
+      startValue: 0,
+      annualAddition: 80000,
+      annualAdditionIncrease: 0.02
+    },
+    2: {
+      key: 2,
+      name: 'primary mortgage',
+      startYear: new Date().getFullYear(),
+      endYear: new Date().getFullYear() + 15,
+      startValue: 0,
+      annualAddition: -20000,
+      annualAdditionIncrease: 0
+    },
+    3: {
+      key: 3,
+      name: 'misc cost of living',
+      startYear: new Date().getFullYear(),
+      endYear: new Date().getFullYear() + 50,
+      startValue: 0,
+      annualAddition: -30000,
+      annualAdditionIncrease: 0
+    },
+    4: {
+      key: 4,
+      name: 'social security',
+      startYear: new Date().getFullYear() + 30,
+      endYear: new Date().getFullYear() + 50,
+      startValue: 0,
+      annualAddition: 12000,
+      annualAdditionIncrease: 0
+    },
+    5: {
+      key: 5,
+      name: 'nest egg',
+      startYear: new Date().getFullYear(),
+      endYear: new Date().getFullYear(),
+      startValue: 100000,
+      annualAddition: 0,
+      annualAdditionIncrease: 0
+    },
+  },
+});
 
 const actions = (set: SetState<StoreState>) => ({
   deleteStream: (key: number) => {
@@ -62,9 +115,15 @@ const actions = (set: SetState<StoreState>) => ({
       set(getInitStoreState());
     }
   },
+  reset: () => {
+    set(getInitStoreState())
+  },
+  resetDemo: () => {
+    set(getDemo())
+  }
 });
 
-export const store = create(combine(getInitStoreState(), actions));
+export const store = create(combine(getDemo(), actions));
 
 const stateStack = [store.getState()];
 store.subscribe((next) => {
@@ -140,10 +199,6 @@ const css = createCSS(() => ({
     justifyContent: "center",
     alignItems: "center",
   },
-  description: {
-    textAlign: "center",
-    whiteSpace: 'pre-wrap',
-  }
 }));
 const getInitState = (): Record<keyof Stream, string | number> => ({
   name: "",
@@ -151,7 +206,7 @@ const getInitState = (): Record<keyof Stream, string | number> => ({
   endYear: "",
   startValue: "",
   annualAddition: "",
-  annaulAdditionIncrease: "",
+  annualAdditionIncrease: "",
   key: Date.now(),
 });
 
@@ -186,7 +241,7 @@ const AddStream = () => {
       endYear: Math.floor(+s.endYear),
       startValue: Math.floor(+s.startValue),
       annualAddition: Math.floor(+s.annualAddition),
-      annaulAdditionIncrease: +s.annaulAdditionIncrease,
+      annualAdditionIncrease: +s.annualAdditionIncrease,
       key: s.key as number,
     });
   };
@@ -237,9 +292,9 @@ const AddStream = () => {
         id="annual addition increase percent"
         type="number"
         onChange={(e) =>
-          ss((p) => ({ ...p, annaulAdditionIncrease: e.target.value }))
+          ss((p) => ({ ...p, annualAdditionIncrease: e.target.value }))
         }
-        value={s.annaulAdditionIncrease}
+        value={s.annualAdditionIncrease}
       />
       <button onClick={submit}>add</button>
     </div>
@@ -318,9 +373,9 @@ const EditStream = (props: { k: number }) => {
         id="annual addition increase percent"
         type="number"
         onChange={(e) =>
-          ss((p) => ({ ...p, annaulAdditionIncrease: +e.target.value }))
+          ss((p) => ({ ...p, annualAdditionIncrease: +e.target.value }))
         }
-        value={s.annaulAdditionIncrease}
+        value={s.annualAdditionIncrease}
       />
       <button onClick={() => store.getState().deleteStream(s.key)}>
         delete
@@ -366,7 +421,7 @@ const projectStream = (options: {
     const prevAmount = data[i - 1]?.secondary ?? s.startValue ?? 0;
     const amount = prevAmount + annualAddition;
     const next = { primary: year, secondary: amount };
-    annualAddition += annualAddition * s.annaulAdditionIncrease;
+    annualAddition += annualAddition * s.annualAdditionIncrease;
     data.push(next);
   }
   return {
@@ -530,7 +585,7 @@ const Options = () => {
   return (
     <div style={css.card}>
       <h1>options</h1>
-      <label htmlFor="roi">roi</label>
+      <label htmlFor="roi">{`roi (9% annual return and 3% inflation = 0.06)`}</label>
       <input
         id="roi"
         type="number"
@@ -549,6 +604,14 @@ const Options = () => {
         {new Date(lastSaved).toLocaleTimeString()}
       </label>
       <button id="save" onClick={handleShare}>{`save / share`}</button>
+      <label htmlFor="reset">
+        reset all data 
+      </label>
+      <button id="reset" onClick={store.getState().reset}>{`reset`}</button>
+      <label htmlFor="demo">
+        reset all data and show demo
+      </label>
+      <button id="demo" onClick={store.getState().resetDemo}>{`show demo`}</button>
     </div>
   );
 };
@@ -582,11 +645,6 @@ export default function App() {
       </Head>
       <div style={css.root}>
         <h1 style={css.h1}>FIRE Calculator</h1>
-        <span style={css.description}>{`
-          when adding an income or expense, use today's dollars after tax
-          
-          roi is compounded annually, be conservative and deduct inflation
-        `}</span>
         <RootErrorBoundary>
           <div style={css.grid}>
             <Options />
