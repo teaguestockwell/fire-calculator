@@ -565,11 +565,11 @@ const useLineData = () => {
 };
 
 const Table = ({ rows }: { rows: (string | number)[][] | undefined }) => {
-  const headerRef = React.useRef<HTMLDivElement>(null);
+  const headerRef = React.useRef<HTMLElement>(null);
   if (!rows) return null;
   return (
     <table style={css.table}>
-      <th style={css.tableHead} ref={headerRef}>
+      <th style={css.tableHead} ref={headerRef as any}>
         {rows[0].map((c, i) => (
           <td style={css.tableData} key={i}>
             {c}
@@ -625,7 +625,7 @@ const Line = () => {
       <div style={css.grow}>
         <Chart
           options={{
-            data,
+            data: data as any,
             primaryAxis,
             secondaryAxes,
             dark: true,
