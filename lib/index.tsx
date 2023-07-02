@@ -587,7 +587,7 @@ const Table = ({ rows }: { rows: (string | number)[][] | undefined }) => {
           <div key={i} style={css.tableRow}>
             {r.map((c, j) => (
               <span key={j} style={css.tableData}>
-                {c}
+                {isNaN(+c) ? c : (+c).toLocaleString()}
               </span>
             ))}
           </div>
