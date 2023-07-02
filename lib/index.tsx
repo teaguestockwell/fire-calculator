@@ -200,25 +200,35 @@ const css = createCSS(() => ({
     justifyContent: "center",
     alignItems: "center",
   },
-  table: { display: "flex", flexDirection: "column", overflowX: "auto" },
-  tableHeader: {
+  table: {
     display: "flex",
-    alignItems: "center",
+    flexDirection: "column",
+    color: "var(--fc-0)",
+    borderRadius: 4,
+    border: "0.5px solid var(--bgc-1)",
+  },
+  tableHead: {
     position: "sticky",
     top: 0,
     zIndex: 1,
+    display: "flex",
+    alignItems: "center",
+    overflow: "hidden",
+    backgroundColor: "var(--bgc-1)",
+  },
+  tableBody: {
+    overflowX: "auto",
   },
   tableRow: {
     display: "flex",
     alignItems: "center",
+    scrollSnapAlign: "start",
   },
-  tableCell: {
-    color: "white",
-    flex: 1,
-    borderTop: "0.5px solid white",
-    borderRight: "1px solid white",
-    borderBottom: "0.5px solid white",
-    borderLeft: "1px solid white",
+  tableData: {
+    borderTop: "0.5px solid var(--bgc-1)",
+    borderRight: "0.5px solid var(--bgc-1)",
+    borderBottom: "0.5px solid var(--bgc-1)",
+    borderLeft: "0.5px solid var(--bgc-1)",
     backgroundColor: "black",
     padding: 10,
     minWidth: 120,
@@ -557,18 +567,34 @@ const useLineData = () => {
 };
 
 const Table = ({ rows }: { rows: (string | number)[][] | undefined }) => {
+  const headerRef = React.useRef<HTMLDivElement>(null);
   if (!rows) return null;
   return (
     <div style={css.table}>
-      {rows?.map((r, i) => (
-        <div key={i} style={i === 0 ? css.tableHeader : css.tableRow}>
-          {r.map((c, i) => (
-            <span style={css.tableCell} key={i}>
-              {c}
-            </span>
-          ))}
-        </div>
-      ))}
+      <div style={css.tableHead} ref={headerRef}>
+        {rows[0].map((c, i) => (
+          <span style={css.tableData} key={i}>
+            {c}
+          </span>
+        ))}
+      </div>
+      <div
+        style={css.tableBody}
+        // workaround to get stick headers
+        onScroll={(e) => {
+          headerRef.current!.scrollLeft = e.currentTarget.scrollLeft;
+        }}
+      >
+        {rows.slice(1).map((r, i) => (
+          <div key={i} style={css.tableRow}>
+            {r.map((c, j) => (
+              <span key={j} style={css.tableData}>
+                {c}
+              </span>
+            ))}
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
