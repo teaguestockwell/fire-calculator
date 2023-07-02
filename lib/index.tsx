@@ -205,7 +205,6 @@ const css = createCSS(() => ({
     flexDirection: "column",
     color: "var(--fc-0)",
     borderRadius: 4,
-    border: "0.5px solid var(--bgc-1)",
   },
   tableHead: {
     position: "sticky",
@@ -214,7 +213,6 @@ const css = createCSS(() => ({
     display: "flex",
     alignItems: "center",
     overflow: "hidden",
-    backgroundColor: "var(--bgc-1)",
   },
   tableBody: {
     overflowX: "auto",
