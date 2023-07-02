@@ -568,15 +568,15 @@ const Table = ({ rows }: { rows: (string | number)[][] | undefined }) => {
   const headerRef = React.useRef<HTMLDivElement>(null);
   if (!rows) return null;
   return (
-    <div style={css.table}>
-      <div style={css.tableHead} ref={headerRef}>
+    <table style={css.table}>
+      <th style={css.tableHead} ref={headerRef}>
         {rows[0].map((c, i) => (
-          <span style={css.tableData} key={i}>
+          <td style={css.tableData} key={i}>
             {c}
-          </span>
+          </td>
         ))}
-      </div>
-      <div
+      </th>
+      <tbody
         style={css.tableBody}
         // workaround to get stick headers
         onScroll={(e) => {
@@ -584,16 +584,16 @@ const Table = ({ rows }: { rows: (string | number)[][] | undefined }) => {
         }}
       >
         {rows.slice(1).map((r, i) => (
-          <div key={i} style={css.tableRow}>
+          <tr key={i} style={css.tableRow}>
             {r.map((c, j) => (
-              <span key={j} style={css.tableData}>
+              <td key={j} style={css.tableData}>
                 {isNaN(+c) ? c : (+c).toLocaleString()}
-              </span>
+              </td>
             ))}
-          </div>
+          </tr>
         ))}
-      </div>
-    </div>
+      </tbody>
+    </table>
   );
 };
 

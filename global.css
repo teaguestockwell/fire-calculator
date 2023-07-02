@@ -35,7 +35,7 @@ textarea {
   font-size: 16px;
 }
 
-input[type=checkbox]{
+input[type="checkbox"] {
   width: 30px !important;
 }
 
@@ -51,7 +51,8 @@ button:is(:focus-visible, :hover) {
   transform: translateY(-1px);
 }
 
-label, span {
+label,
+span {
   color: var(--fc-0);
   font-size: 16px;
 }
@@ -60,4 +61,12 @@ h1 {
   color: vaR(--fc-0);
   font-size: 24px;
   margin: 0px !important;
+}
+
+table,
+th,
+tbody,
+tr,
+td {
+  all: unset;
 }
