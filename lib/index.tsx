@@ -39,48 +39,48 @@ const getDemo = (): StoreState => ({
   moneyStreams: {
     1: {
       key: 1,
-      name: 'job (net)',
+      name: "job (net)",
       startYear: new Date().getFullYear(),
       endYear: new Date().getFullYear() + 10,
       startValue: 0,
       annualAddition: 80000,
-      annualAdditionIncrease: 0.02
+      annualAdditionIncrease: 0.02,
     },
     2: {
       key: 2,
-      name: 'primary mortgage',
+      name: "mortgage",
       startYear: new Date().getFullYear(),
       endYear: new Date().getFullYear() + 15,
       startValue: 0,
       annualAddition: -20000,
-      annualAdditionIncrease: 0
+      annualAdditionIncrease: 0,
     },
     3: {
       key: 3,
-      name: 'misc cost of living',
+      name: "cost of living",
       startYear: new Date().getFullYear(),
       endYear: new Date().getFullYear() + 50,
       startValue: 0,
       annualAddition: -30000,
-      annualAdditionIncrease: 0
+      annualAdditionIncrease: 0,
     },
     4: {
       key: 4,
-      name: 'social security',
+      name: "social security",
       startYear: new Date().getFullYear() + 30,
       endYear: new Date().getFullYear() + 50,
       startValue: 0,
       annualAddition: 12000,
-      annualAdditionIncrease: 0
+      annualAdditionIncrease: 0,
     },
     5: {
       key: 5,
-      name: 'nest egg',
+      name: "nest egg",
       startYear: new Date().getFullYear(),
       endYear: new Date().getFullYear(),
       startValue: 100000,
       annualAddition: 0,
-      annualAdditionIncrease: 0
+      annualAdditionIncrease: 0,
     },
   },
 });
@@ -116,11 +116,11 @@ const actions = (set: SetState<StoreState>) => ({
     }
   },
   reset: () => {
-    set(getInitStoreState())
+    set(getInitStoreState());
   },
   resetDemo: () => {
-    set(getDemo())
-  }
+    set(getDemo());
+  },
 });
 
 export const store = create(combine(getDemo(), actions));
@@ -170,6 +170,7 @@ const css = createCSS(() => ({
   },
   pre: {
     whiteSpace: "pre-wrap",
+    color: "white",
   },
   grow: {
     margin: 20,
@@ -198,6 +199,29 @@ const css = createCSS(() => ({
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
+  },
+  table: { display: "flex", flexDirection: "column", overflowX: "auto" },
+  tableHeader: {
+    display: "flex",
+    alignItems: "center",
+    position: "sticky",
+    top: 0,
+    zIndex: 1,
+  },
+  tableRow: {
+    display: "flex",
+    alignItems: "center",
+  },
+  tableCell: {
+    color: "white",
+    flex: 1,
+    borderTop: "0.5px solid white",
+    borderRight: "1px solid white",
+    borderBottom: "0.5px solid white",
+    borderLeft: "1px solid white",
+    backgroundColor: "black",
+    padding: 10,
+    minWidth: 120,
   },
 }));
 const getInitState = (): Record<keyof Stream, string | number> => ({
@@ -420,13 +444,20 @@ const projectStream = (options: {
 
     const prevAmount = data[i - 1]?.secondary ?? s.startValue ?? 0;
     const amount = prevAmount + annualAddition;
-    const next = { primary: year, secondary: amount };
+    const next = {
+      primary: year,
+      secondary: amount,
+    };
     annualAddition += annualAddition * s.annualAdditionIncrease;
     data.push(next);
   }
   return {
     label: s.name,
-    data: data.map((d) => ({ ...d, secondary: Math.floor(d.secondary) })),
+    data: data.map((d) => ({
+      ...d,
+      secondary: Math.floor(d.secondary),
+      row: null,
+    })),
   };
 };
 
@@ -448,19 +479,31 @@ const getSumStream = (
   roi: number
 ) => {
   // primary: date, secondary: amount
-  const data: { primary: number; secondary: number }[] = [];
+  const data: { primary: number; secondary: number; row: number[] }[] = [];
   const firstYear = projectedStreams[0].data[0].primary;
   const lastYear =
     projectedStreams[0].data[projectedStreams[0].data.length - 1].primary;
   for (let year = firstYear, i = 0; year <= lastYear; year++, i++) {
-    const diffs = projectedStreams.map((s) => diffYear(s, year));
-    const sum = diffs.reduce((acc, cur) => acc + cur, 0);
-    const lastTotal = data[i - 1]?.secondary ?? 0;
-    const apy = lastTotal * roi;
-    const total = sum + apy + lastTotal;
-    data.push({ primary: year, secondary: total });
+    const annualAdditions = projectedStreams.map((s) => diffYear(s, year));
+    const annualAdditionSum = annualAdditions.reduce(
+      (acc, cur) => acc + cur,
+      0
+    );
+    const beginningYearSum = data[i - 1]?.secondary ?? 0;
+    const prevYearAnnualGrowth = beginningYearSum * roi;
+    const annualAdditionGrowth = Math.max(annualAdditionSum * 0.5 * roi, 0);
+    const annualRoi = prevYearAnnualGrowth + annualAdditionGrowth;
+    const endYearSum = beginningYearSum + annualAdditionSum + annualRoi;
+    const row = [
+      year,
+      beginningYearSum,
+      ...annualAdditions,
+      annualRoi,
+      endYearSum,
+    ];
+    data.push({ primary: year, secondary: endYearSum, row });
   }
-  return { data, label: "sum" };
+  return { label: "sum", data };
 };
 
 const useLineData = () => {
@@ -489,19 +532,49 @@ const useLineData = () => {
     return max;
   }, [ss]);
 
-  const data = React.useMemo(() => {
+  const { data, sumData, givenData } = React.useMemo(() => {
     if (!ss.length) {
-      return null;
+      return { data: null, sumData: null, givenData: null };
     }
-    const given = ss.map((e) => projectStream({ startYear, endYear, s: e }));
-    const derived = getSumStream(given, roi);
-    return [...given, derived];
+    const givenData = ss.map((e) =>
+      projectStream({ startYear, endYear, s: e })
+    );
+    const sumData = getSumStream(givenData, roi);
+    return { data: [...givenData, sumData], sumData, givenData };
   }, [ss, startYear, endYear, roi]);
-  return data;
+
+  const rows = React.useMemo(() => {
+    if (!sumData || !givenData) return;
+    const streamLabels = givenData.map((d) => d.label);
+    const header = ["year", "start", ...streamLabels, "annual roi", "end"];
+    const rows: string[][] = [header];
+    return sumData.data.reduce((acc, cur) => {
+      acc.push(cur.row.map((n) => n.toFixed(0)));
+      return acc;
+    }, rows);
+  }, [sumData, givenData]);
+  return { data, rows };
+};
+
+const Table = ({ rows }: { rows: (string | number)[][] | undefined }) => {
+  if (!rows) return null;
+  return (
+    <div style={css.table}>
+      {rows?.map((r, i) => (
+        <div key={i} style={i === 0 ? css.tableHeader : css.tableRow}>
+          {r.map((c, i) => (
+            <span style={css.tableCell} key={i}>
+              {c}
+            </span>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
 };
 
 const Line = () => {
-  const data = useLineData();
+  const { data, rows } = useLineData();
 
   const primaryAxis = React.useMemo(
     () => ({
@@ -538,6 +611,7 @@ const Line = () => {
       {/* <pre style={css.pre}>
         {JSON.stringify({ data, state: store.getState() }, null, 2)}
       </pre> */}
+      <Table rows={rows} />
     </>
   );
 };
@@ -604,14 +678,13 @@ const Options = () => {
         {new Date(lastSaved).toLocaleTimeString()}
       </label>
       <button id="save" onClick={handleShare}>{`save / share`}</button>
-      <label htmlFor="reset">
-        reset all data 
-      </label>
+      <label htmlFor="reset">reset all data</label>
       <button id="reset" onClick={store.getState().reset}>{`reset`}</button>
-      <label htmlFor="demo">
-        reset all data and show demo
-      </label>
-      <button id="demo" onClick={store.getState().resetDemo}>{`show demo`}</button>
+      <label htmlFor="demo">reset all data and show demo</label>
+      <button
+        id="demo"
+        onClick={store.getState().resetDemo}
+      >{`show demo`}</button>
     </div>
   );
 };
