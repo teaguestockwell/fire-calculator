@@ -27,14 +27,14 @@ const getInitStoreState = () => ({
   roi: 0.06,
   moneyStreams: {} as Record<string, Stream>,
   lastSaved: new Date().toISOString(),
-  autoSave: false,
+  autoSave: true,
 });
 
 type StoreState = ReturnType<typeof getInitStoreState>;
 
 const getDemo = (): StoreState => ({
   lastSaved: new Date().toISOString(),
-  autoSave: false,
+  autoSave: true,
   roi: 0.06,
   moneyStreams: {
     1: {
@@ -231,124 +231,43 @@ const css = createCSS(() => ({
     padding: 10,
     minWidth: 120,
   },
+  stream: {
+    display: "flex",
+    flexDirection: "column",
+  },
+  buttonRow: {
+    display: "flex",
+    flexDirection: "row",
+    gap: 10,
+  },
+  button: {
+    flex: 1,
+  },
 }));
-const getInitState = (): Record<keyof Stream, string | number> => ({
-  name: "",
-  startYear: "",
-  endYear: "",
-  startValue: "",
-  annualAddition: "",
-  annualAdditionIncrease: "",
-  key: Date.now(),
-});
-
-const AddStream = () => {
-  const [s, ss] = React.useState(getInitState);
-
-  const submit = () => {
-    const errors: string[] = [];
-    Object.entries(s).forEach((e) => {
-      if (!e[1]) {
-        console.log(e[0]);
-        errors.push(e[0]);
-      }
-    });
-    if (errors.length) {
-      alert("unfilled fields: " + errors.join(" "));
-      return;
-    }
-    if (Math.floor(+s.startYear) < 1900) {
-      alert("start year cant be less than 1900");
-      return;
-    }
-    if (Math.floor(+s.endYear) > 3000) {
-      alert("end year cant be greater than 3000");
-      return;
-    }
-
-    ss(getInitState());
-    store.getState().putStream({
-      name: s.name as string,
-      startYear: Math.floor(+s.startYear),
-      endYear: Math.floor(+s.endYear),
-      startValue: Math.floor(+s.startValue),
-      annualAddition: Math.floor(+s.annualAddition),
-      annualAdditionIncrease: +s.annualAdditionIncrease,
-      key: s.key as number,
-    });
-  };
-
-  return (
-    <div style={css.card}>
-      <h1>add income and expenses</h1>
-      <label htmlFor="name">income / expense name</label>
-      <input
-        id="name"
-        type="text"
-        onChange={(e) => ss((p) => ({ ...p, name: e.target.value }))}
-        value={s.name}
-        autoComplete="off"
-      />
-      <label htmlFor="start year">start year</label>
-      <input
-        id="start year"
-        type="number"
-        onChange={(e) => ss((p) => ({ ...p, startYear: e.target.value }))}
-        value={s.startYear}
-      />
-      <label htmlFor="end year">end year</label>
-      <input
-        id="end year"
-        type="number"
-        onChange={(e) => ss((p) => ({ ...p, endYear: e.target.value }))}
-        value={s.endYear}
-      />
-      <label htmlFor="start value">start value</label>
-      <input
-        id="start value"
-        type="number"
-        onChange={(e) => ss((p) => ({ ...p, startValue: e.target.value }))}
-        value={s.startValue}
-      />
-      <label htmlFor="annual addition">annual addition</label>
-      <input
-        id="annual addition"
-        type="number"
-        onChange={(e) => ss((p) => ({ ...p, annualAddition: e.target.value }))}
-        value={s.annualAddition}
-      />
-      <label htmlFor="annual addition increase percent">
-        annual addition increase percent
-      </label>
-      <input
-        id="annual addition increase percent"
-        type="number"
-        onChange={(e) =>
-          ss((p) => ({ ...p, annualAdditionIncrease: e.target.value }))
-        }
-        value={s.annualAdditionIncrease}
-      />
-      <button onClick={submit}>add</button>
-    </div>
-  );
-};
 
 const EditStream = (props: { k: number }) => {
-  const s = store((s) => s.moneyStreams[props.k]);
-  type S = typeof s;
-  const ss = (cb: (prev: S) => S) => {
-    const prev = store.getState().moneyStreams[props.k];
-    store.getState().putStream(cb(prev));
+  const [dirty, setDirty] = React.useState(false);
+  const _s = store((s) => s.moneyStreams[props.k]);
+  const [s, _ss] = React.useState(_s);
+  const ss = (key: keyof typeof _s) => {
+    return (e: { target: { value: any } }) => {
+      setDirty(true);
+      _ss((p) => ({ ...p, [key]: e.target.value }));
+    };
   };
 
   return (
-    <div style={css.card}>
-      <h1>{s.name}</h1>
+    <div
+      style={{
+        ...css.card,
+        ...(dirty ? { borderColor: "red" } : undefined),
+      }}
+    >
       <label htmlFor="name">income / expense name</label>
       <input
         id="name"
         type="text"
-        onChange={(e) => ss((p) => ({ ...p, name: e.target.value }))}
+        onChange={ss("name")}
         value={s.name}
         autoComplete="off"
       />
@@ -356,46 +275,28 @@ const EditStream = (props: { k: number }) => {
       <input
         id="start year"
         type="number"
-        onChange={(e) => {
-          const next = Math.floor(+e.target.value);
-          if (next < 1900) {
-            alert("start cant be less than 1990");
-            return;
-          }
-          ss((p) => ({ ...p, startYear: next }));
-        }}
+        onChange={ss("startYear")}
         value={s.startYear}
       />
       <label htmlFor="end year">end year</label>
       <input
         id="end year"
         type="number"
-        onChange={(e) => {
-          const next = +e.target.value;
-          if (next > 3000) {
-            alert("end cant be greater than 3000");
-            return;
-          }
-          ss((p) => ({ ...p, endYear: next }));
-        }}
+        onChange={ss("endYear")}
         value={s.endYear}
       />
       <label htmlFor="start value">start value</label>
       <input
         id="start value"
         type="number"
-        onChange={(e) =>
-          ss((p) => ({ ...p, startValue: Math.floor(+e.target.value) }))
-        }
+        onChange={ss("startValue")}
         value={s.startValue}
       />
       <label htmlFor="annual addition">annual addition</label>
       <input
         id="annual addition"
         type="number"
-        onChange={(e) =>
-          ss((p) => ({ ...p, annualAddition: Math.floor(+e.target.value) }))
-        }
+        onChange={ss("annualAddition")}
         value={s.annualAddition}
       />
       <label htmlFor="annual addition increase percent">
@@ -404,14 +305,72 @@ const EditStream = (props: { k: number }) => {
       <input
         id="annual addition increase percent"
         type="number"
-        onChange={(e) =>
-          ss((p) => ({ ...p, annualAdditionIncrease: +e.target.value }))
-        }
+        onChange={ss("annualAdditionIncrease")}
         value={s.annualAdditionIncrease}
       />
-      <button onClick={() => store.getState().deleteStream(s.key)}>
-        delete
-      </button>
+      <div style={css.buttonRow}>
+        <button
+          style={css.button}
+          onClick={() => {
+            store.getState().deleteStream(s.key);
+          }}
+        >
+          delete
+        </button>
+        <button
+          style={css.button}
+          disabled={!dirty}
+          onClick={() => {
+            const errors: string[] = [];
+            const next = {
+              name: s.name as string,
+              startYear: Math.floor(+s.startYear),
+              endYear: Math.floor(+s.endYear),
+              startValue: Math.floor(+s.startValue),
+              annualAddition: Math.floor(+s.annualAddition),
+              annualAdditionIncrease: +s.annualAdditionIncrease,
+              key: s.key as number,
+            };
+            if (!next.name) {
+              errors.push("name must be defined");
+            }
+            if (
+              Number.isNaN(next.startYear) ||
+              next.startYear < 1900 ||
+              next.startYear > 2200
+            ) {
+              errors.push("start year must be between 1900 and 2200");
+            }
+            if (
+              Number.isNaN(next.endYear) ||
+              next.startYear > next.endYear ||
+              next.endYear > 2300
+            ) {
+              errors.push(
+                "end year must be after start year and less than 2300"
+              );
+            }
+            if (Number.isNaN(next.startValue)) {
+              errors.push("start value must be a number");
+            }
+            if (Number.isNaN(next.annualAddition)) {
+              errors.push("annual addition must be a number");
+            }
+            if (Number.isNaN(next.annualAdditionIncrease)) {
+              errors.push("annual addition increase must be a number");
+            }
+            if (errors.length) {
+              alert(errors.join("\n"));
+              return;
+            }
+            setDirty(false);
+            _ss(next)
+            store.getState().putStream(next);
+          }}
+        >
+          save
+        </button>
+      </div>
     </div>
   );
 };
@@ -643,7 +602,6 @@ const Line = () => {
 const Options = () => {
   const value = store((s) => s.roi);
   const lastSaved = store((s) => s.lastSaved);
-  const autoSAve = store((s) => s.autoSave);
   const handleShare = () => {
     try {
       const currentUrl = window.location.href;
@@ -690,18 +648,29 @@ const Options = () => {
         value={value}
         onChange={(e) => store.setState({ roi: +e.target.value })}
       />
-      <label htmlFor="autosave">autosave</label>
-      <input
-        id="autosave"
-        type="checkbox"
-        checked={autoSAve}
-        onChange={(e) => store.setState({ autoSave: e.target.checked })}
-      />
+      <label htmlFor="addnew">add</label>
+      <button
+        id="addnew"
+        onClick={() => {
+          const key = Date.now();
+          store.getState().putStream({
+            name: "new income / expense",
+            startYear: new Date().getFullYear(),
+            endYear: new Date().getFullYear() + 10,
+            startValue: 0,
+            annualAddition: 0,
+            annualAdditionIncrease: 0,
+            key,
+          });
+        }}
+      >
+        add income / expense
+      </button>
       <label htmlFor="save">
         last saved {new Date(lastSaved).toLocaleDateString()}{" "}
         {new Date(lastSaved).toLocaleTimeString()}
       </label>
-      <button id="save" onClick={handleShare}>{`save / share`}</button>
+      <button id="save" onClick={handleShare}>{`share`}</button>
       <label htmlFor="reset">reset all data</label>
       <button id="reset" onClick={store.getState().reset}>{`reset`}</button>
       <label htmlFor="demo">reset all data and show demo</label>
@@ -745,7 +714,6 @@ export default function App() {
         <RootErrorBoundary>
           <div style={css.grid}>
             <Options />
-            <AddStream />
             <StreamList />
           </div>
           <Line />
